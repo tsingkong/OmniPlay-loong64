@@ -4,5 +4,10 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <Application.Styles>
     <FluentTheme />
+    <!-- Avalonia 的 PopupRoot 默认背景是白色。播放器浮层（热区、窗口按钮、进度条）
+         需要黑色背景：白色底会让热区变成不透明白带、并让白色窗口按钮图标不可见。 -->
+    <Style Selector="PopupRoot">
+      <Setter Property="Background" Value="#FF000000" />
+    </Style>
   </Application.Styles>
 </Application>

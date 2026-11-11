@@ -9,10 +9,7 @@ internal static class MpvNative
     private static readonly object SyncRoot = new();
     private static readonly string[] CandidateLibraries =
     [
-        "libmpv-2.dll",
-        "mpv-2.dll",
-        "libmpv.dll",
-        "mpv.dll"
+        "libmpv.so.2"
     ];
 
     private static IntPtr loadedLibraryHandle;
@@ -146,27 +143,27 @@ internal static class MpvNative
         return ptr;
     }
 
-    [DllImport("libmpv-2", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("libmpv.so.2", CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr mpv_create();
 
-    [DllImport("libmpv-2", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("libmpv.so.2", CallingConvention = CallingConvention.Cdecl)]
     private static extern int mpv_initialize(IntPtr ctx);
 
-    [DllImport("libmpv-2", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("libmpv.so.2", CallingConvention = CallingConvention.Cdecl)]
     private static extern void mpv_terminate_destroy(IntPtr ctx);
 
-    [DllImport("libmpv-2", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("libmpv.so.2", CallingConvention = CallingConvention.Cdecl)]
     private static extern int mpv_set_option_string(IntPtr ctx, string name, string value);
 
-    [DllImport("libmpv-2", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("libmpv.so.2", CallingConvention = CallingConvention.Cdecl)]
     private static extern int mpv_set_property_string(IntPtr ctx, string name, string value);
 
-    [DllImport("libmpv-2", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("libmpv.so.2", CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr mpv_get_property_string(IntPtr ctx, string name);
 
-    [DllImport("libmpv-2", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("libmpv.so.2", CallingConvention = CallingConvention.Cdecl)]
     private static extern void mpv_free(IntPtr data);
 
-    [DllImport("libmpv-2", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("libmpv.so.2", CallingConvention = CallingConvention.Cdecl)]
     private static extern int mpv_command(IntPtr ctx, IntPtr args);
 }

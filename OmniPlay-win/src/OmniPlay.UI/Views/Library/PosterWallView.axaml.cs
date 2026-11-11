@@ -50,6 +50,7 @@ public partial class PosterWallView : UserControl
     private const double EpisodeThumbnailAspectRatio = 9.0 / 16.0;
     private const double LibraryPosterTargetColumns = 8;
     private const double OverlayWindowControlsHotZoneHeight = 48;
+    private const double OverlayBottomHotZoneHeight = 180;
     private const double OverlayResizeBorderThickness = 10;
     private const double OverlayResizeCornerSize = 14;
     private const double ContinueWatchingDragThreshold = 4;
@@ -110,6 +111,8 @@ public partial class PosterWallView : UserControl
     private NativeWindowProcedure? overlayWindowProcedure;
     private bool isContinueWatchingScrollDragActive;
     private bool isContinueWatchingScrollDragging;
+    private bool isPointerOverOverlayWindowControls;
+    private X11PointerMonitor? overlayPointerMonitor;
     private Point continueWatchingScrollDragStartPoint;
     private Vector continueWatchingScrollDragStartOffset;
     private bool openingPlayback;
@@ -695,36 +698,23 @@ public partial class PosterWallView : UserControl
         });
     }
 
-    private void OverlayWindowControlsHotZone_OnPointerActivity(object? sender, PointerEventArgs e)
-    {
-        UpdateOverlayResizeCursor(e);
-        ShowOverlayWindowControlsTemporarily();
-    }
-
-    private void OverlayWindowControlsHotZone_OnPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (TryBeginOverlayResizeDrag(e))
-        {
-            return;
-        }
-
-        ShowOverlayWindowControlsTemporarily();
-    }
-
     private void OverlayWindowControlsPanel_OnPointerEntered(object? sender, PointerEventArgs e)
     {
+        isPointerOverOverlayWindowControls = true;
         UpdateOverlayResizeCursor(e);
         ShowOverlayWindowControlsTemporarily();
     }
 
     private void OverlayWindowControlsPanel_OnPointerExited(object? sender, PointerEventArgs e)
     {
+        isPointerOverOverlayWindowControls = false;
         ResetOverlayResizeCursor();
         EnsureOverlayWindowControlsMonitorStarted();
     }
 
     private void OverlayWindowControlsPanel_OnPointerMoved(object? sender, PointerEventArgs e)
     {
+        isPointerOverOverlayWindowControls = true;
         UpdateOverlayResizeCursor(e);
         ShowOverlayWindowControlsTemporarily();
     }
@@ -869,7 +859,6 @@ public partial class PosterWallView : UserControl
     private void UpdateOverlayWindowControlsMonitorState()
     {
         var shouldMonitor = ShouldMonitorOverlayWindowControls();
-        OverlayWindowControlsHotZonePopup.IsOpen = shouldMonitor && !OverlayWindowControlsPopup.IsOpen;
 
         if (shouldMonitor)
         {
@@ -887,8 +876,13 @@ public partial class PosterWallView : UserControl
 
     private bool IsPointerOverOverlayWindowControlsHotZone()
     {
-        if (!OperatingSystem.IsWindows() ||
-            TopLevel.GetTopLevel(this) is not Window window ||
+        if (!OperatingSystem.IsWindows())
+        {
+            // Linux/macOS 没有 Win32 光标查询 API，改用 Avalonia 指针事件维护的标志。
+            return isPointerOverOverlayWindowControls;
+        }
+
+        if (TopLevel.GetTopLevel(this) is not Window window ||
             window.TryGetPlatformHandle()?.Handle is not { } handle ||
             handle == IntPtr.Zero ||
             !GetWindowRect(handle, out var windowRect) ||
@@ -916,7 +910,6 @@ public partial class PosterWallView : UserControl
 
         OverlayControlsPopup.IsOpen = canShowOverlayPopups && player?.AreControlsVisible == true;
         OverlayStatusPopup.IsOpen = canShowOverlayPopups && player?.ShouldShowOpeningMovieStatus == true;
-        OverlayBottomHotZonePopup.IsOpen = canShowOverlayPopups && player?.AreControlsVisible != true;
 
         if (!canShowOverlayPopups || player?.AreControlsVisible != true)
         {
@@ -944,8 +937,6 @@ public partial class PosterWallView : UserControl
     {
         OverlayControlsPopup.IsOpen = false;
         OverlayStatusPopup.IsOpen = false;
-        OverlayBottomHotZonePopup.IsOpen = false;
-        OverlayWindowControlsHotZonePopup.IsOpen = false;
         OverlayAudioPopup.IsOpen = false;
         OverlaySubtitlePopup.IsOpen = false;
         OverlaySubtitleSizePopup.IsOpen = false;
@@ -1218,9 +1209,7 @@ public partial class PosterWallView : UserControl
     {
         OverlayPlaybackRoot.Cursor = cursor;
         OverlayWindowControlsPanel.Cursor = cursor;
-        OverlayWindowControlsHotZone.Cursor = cursor;
         OverlayControlsArea.Cursor = cursor;
-        OverlayBottomHotZone.Cursor = cursor;
     }
 
     private void ResetOverlayResizeCursor()
@@ -1538,23 +1527,6 @@ public partial class PosterWallView : UserControl
         }
     }
 
-    private void OverlayBottomHotZone_OnPointerActivity(object? sender, PointerEventArgs e)
-    {
-        UpdateOverlayResizeCursor(e);
-        ShowOverlayControlsTemporarily();
-    }
-
-    private void OverlayBottomHotZone_OnPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (TryBeginOverlayResizeDrag(e))
-        {
-            return;
-        }
-
-        ShowOverlayControlsTemporarily();
-        e.Handled = true;
-    }
-
     private void OverlayTapSurface_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
@@ -1666,10 +1638,70 @@ public partial class PosterWallView : UserControl
             UpdateOverlayResizeChrome(window);
             InstallOverlayNativeShortcutHook(window);
             FocusOverlayPlaybackRoot();
+            StartOverlayPointerMonitor(window);
         }
 
         SetOverlayWindowControlsVisible(false);
         ShowOverlayControlsTemporarily();
+    }
+
+    private void StartOverlayPointerMonitor(Window window)
+    {
+        if (OperatingSystem.IsWindows() ||
+            window.TryGetPlatformHandle()?.Handle is not { } handle ||
+            handle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        overlayPointerMonitor ??= new X11PointerMonitor();
+        overlayPointerMonitor.PointerMoved += OverlayPointerMonitor_OnPointerMoved;
+        overlayPointerMonitor.PrimaryButtonPressed += OverlayPointerMonitor_OnPrimaryButtonPressed;
+        overlayPointerMonitor.Start(handle);
+    }
+
+    private void StopOverlayPointerMonitor()
+    {
+        if (overlayPointerMonitor is null)
+        {
+            return;
+        }
+
+        overlayPointerMonitor.PointerMoved -= OverlayPointerMonitor_OnPointerMoved;
+        overlayPointerMonitor.PrimaryButtonPressed -= OverlayPointerMonitor_OnPrimaryButtonPressed;
+        overlayPointerMonitor.Stop();
+        overlayPointerMonitor.Dispose();
+        overlayPointerMonitor = null;
+    }
+
+    private void OverlayPointerMonitor_OnPointerMoved(object? sender, X11PointerActivityEventArgs e)
+    {
+        if (currentViewModel?.IsPlayerOverlayOpen != true || !CanShowOverlayPopups())
+        {
+            return;
+        }
+
+        var scaling = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0;
+        var clientY = e.Y / scaling;
+
+        isPointerOverOverlayWindowControls = clientY <= OverlayWindowControlsHotZoneHeight;
+
+        // 鼠标在视频区域活动时显示控制条；位于顶部热区时同时显示窗口按钮。
+        ShowOverlayControlsTemporarily();
+        if (isPointerOverOverlayWindowControls)
+        {
+            ShowOverlayWindowControlsTemporarily();
+        }
+    }
+
+    private void OverlayPointerMonitor_OnPrimaryButtonPressed(object? sender, EventArgs e)
+    {
+        if (currentViewModel?.IsPlayerOverlayOpen != true || !CanShowOverlayPopups())
+        {
+            return;
+        }
+
+        ToggleOverlayControlsVisibility();
     }
 
     private void ExitOverlayPlaybackMode()
@@ -1677,6 +1709,7 @@ public partial class PosterWallView : UserControl
         overlayControlsHideTimer.Stop();
         overlayWindowControlsHideTimer.Stop();
         overlayVolumePopupHideTimer.Stop();
+        StopOverlayPointerMonitor();
         CloseOverlayPopups();
 
         if (overlayKeyboardWindow is not null)

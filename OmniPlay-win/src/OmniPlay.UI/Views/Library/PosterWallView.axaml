@@ -1669,10 +1669,6 @@
           </Border>
         </Popup>
 
-        <Popup x:Name="OverlayWindowControlsHotZonePopup" IsLightDismissEnabled="False" Placement="BottomEdgeAlignedLeft" PlacementTarget="{Binding #OverlayWindowControlsAnchor}" Topmost="True">
-          <Border x:Name="OverlayWindowControlsHotZone" Width="{Binding #OverlayPlaybackRoot.Bounds.Width}" Height="48" Background="Transparent" PointerEntered="OverlayWindowControlsHotZone_OnPointerActivity" PointerMoved="OverlayWindowControlsHotZone_OnPointerActivity" PointerPressed="OverlayWindowControlsHotZone_OnPointerPressed" />
-        </Popup>
-
         <Popup x:Name="OverlayStatusPopup" IsLightDismissEnabled="False" Placement="Center" PlacementTarget="{Binding #OverlayPlaybackRoot}" Topmost="True">
           <Border MaxWidth="520" Padding="16,11" CornerRadius="8" Background="#CC000000" BorderBrush="#33FFFFFF" BorderThickness="1">
             <StackPanel Spacing="10">
@@ -1814,9 +1810,6 @@
           </Border>
         </Popup>
 
-        <Popup x:Name="OverlayBottomHotZonePopup" IsLightDismissEnabled="False" Placement="TopEdgeAlignedLeft" PlacementTarget="{Binding #OverlayBottomPopupAnchor}" Topmost="True">
-          <Border x:Name="OverlayBottomHotZone" Width="{Binding #OverlayPlaybackRoot.Bounds.Width}" Height="180" Background="#01000000" PointerEntered="OverlayBottomHotZone_OnPointerActivity" PointerMoved="OverlayBottomHotZone_OnPointerActivity" PointerPressed="OverlayBottomHotZone_OnPointerPressed" />
-        </Popup>
       </Grid>
     </Border>
 

@@ -15,12 +15,13 @@ public sealed class WindowsPowerManagementService : IPowerManagementService, IDi
 
     private static readonly object Gate = new();
     private static int activeCount;
+    private static readonly bool IsPlatformSupported = OperatingSystem.IsWindows();
 
     private bool isHolding;
 
     public void BeginPlayback()
     {
-        if (isHolding)
+        if (!IsPlatformSupported || isHolding)
         {
             return;
         }
@@ -38,7 +39,7 @@ public sealed class WindowsPowerManagementService : IPowerManagementService, IDi
 
     public void EndPlayback()
     {
-        if (!isHolding)
+        if (!IsPlatformSupported || !isHolding)
         {
             return;
         }

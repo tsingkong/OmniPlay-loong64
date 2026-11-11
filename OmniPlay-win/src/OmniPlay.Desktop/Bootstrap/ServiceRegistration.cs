@@ -34,7 +34,15 @@ public static class ServiceRegistration
         services.AddSingleton<ISettingsService, JsonSettingsService>();
         services.AddSingleton<IFolderPickerService, FolderPickerService>();
         services.AddSingleton<IPosterImagePickerService, PosterImagePickerService>();
-        services.AddSingleton<IPowerManagementService, WindowsPowerManagementService>();
+        if (OperatingSystem.IsWindows())
+        {
+            services.AddSingleton<IPowerManagementService, WindowsPowerManagementService>();
+        }
+        else
+        {
+            // Linux/macOS 没有 SetThreadExecutionState，使用空实现，避免 P/Invoke 失败中断播放状态机。
+            services.AddSingleton<IPowerManagementService>(_ => NullPowerManagementService.Instance);
+        }
         services.AddSingleton<ISubtitlePickerService, SubtitlePickerService>();
         services.AddSingleton(_ =>
         {
